@@ -23,7 +23,7 @@ fn main() {
     let mut rng = rand::rng();
 
     let mut count: HashMap<usize, usize> = HashMap::new();
-    for i in 0..NUM_OF_PROJECTIONS {
+    for i in 0..NUM_OF_PROJECTIONS * 3 {
         let current_grid = *grid_candidates.choose(&mut rng).unwrap();
 
         let (index, observation) = client.observe_quantized(current_grid);

@@ -26,7 +26,7 @@ impl Client {
 
         let result = (self.i, observation);
 
-        if self.i < NUM_OF_PROJECTIONS {
+        if self.i < NUM_OF_PROJECTIONS - 1 {
             self.i += 1;
         } else {
             self.i = 0;
