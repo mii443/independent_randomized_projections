@@ -1,25 +1,26 @@
 use std::collections::HashMap;
 
-use nalgebra::SMatrix;
+use nalgebra::DVector;
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_distr::{Distribution, Normal};
+use rayon::prelude::*;
 
 use crate::{
     common,
     constant::{GRID_SIZE, NUM_OF_PROJECTIONS},
 };
 
-pub fn generate_projection_matrix() -> Vec<SMatrix<f32, GRID_SIZE, 1>> {
-    let mut rng = ChaCha20Rng::from_rng(&mut rand::rng());
-
+pub fn generate_projection_matrix() -> Vec<DVector<f32>> {
     let std_dev = 1.0 / (GRID_SIZE as f64).sqrt();
     let normal = Normal::new(0.0, std_dev).unwrap();
 
     (0..NUM_OF_PROJECTIONS)
-        .map(|_| {
-            let mut projection = SMatrix::<f32, GRID_SIZE, 1>::zeros();
-            for i in 0..GRID_SIZE {
-                projection[(i, 0)] = normal.sample(&mut rng) as f32;
+        .into_par_iter()
+        .map(|i| {
+            let mut rng = ChaCha20Rng::from_seed([i as u8; 32]);
+            let mut projection = DVector::<f32>::zeros(GRID_SIZE);
+            for j in 0..GRID_SIZE {
+                projection[j] = normal.sample(&mut rng) as f32;
             }
             projection
         })
@@ -27,20 +28,20 @@ pub fn generate_projection_matrix() -> Vec<SMatrix<f32, GRID_SIZE, 1>> {
 }
 
 pub fn generate_fingerprint_database(
-    projections: Vec<SMatrix<f32, GRID_SIZE, 1>>,
+    projections: Vec<DVector<f32>>,
 ) -> HashMap<usize, (usize, Vec<f32>)> {
-    let mut fingerprint_database = HashMap::new();
-
-    for (i, projection) in projections.iter().enumerate() {
-        let mut fingerprint = Vec::with_capacity(GRID_SIZE);
-        for j in 0..GRID_SIZE {
-            let observation = projection[(j, 0)];
-            fingerprint.push(observation);
-        }
-        fingerprint_database.insert(i, (i, fingerprint));
-    }
-
-    fingerprint_database
+    projections
+        .into_par_iter()
+        .enumerate()
+        .map(|(i, projection)| {
+            let mut fingerprint = Vec::with_capacity(GRID_SIZE);
+            for j in 0..GRID_SIZE {
+                let observation = projection[j];
+                fingerprint.push(observation);
+            }
+            (i, (i, fingerprint))
+        })
+        .collect()
 }
 
 pub fn predict_location_from_database(
